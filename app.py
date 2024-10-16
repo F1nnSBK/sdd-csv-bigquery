@@ -1,6 +1,7 @@
+from statistics import variance
 from wsgiref.util import request_uri
 
-from flask import Flask
+from flask import Flask, render_template
 from google.cloud import storage
 
 app = Flask(__name__)
@@ -13,22 +14,7 @@ target_bucket="svg-dcc-raw-tst"
 def displayBuckets():
     project_id = "svg-dcc-shr-storage-aa07"
 
-    def getCSV(target_bucket):
+    return render_template("templates/index.html", bucketNames="Hallo")
 
-        storage_client = storage.Client()
-        blobs = storage_client.list_blobs(target_bucket)
-
-        print("Buckets:")
-        for bucket in blobs:
-            print(bucket.name)
-            print(bucket.time_created)
-            bucketNames.append(bucket.name)
-            bucketNames.append(bucket.time_created)
-        print("Alle Buckets aufgelistet")
-
-
-
-    getCSV(target_bucket)
-
-    return bucketNames, blobsInProd
-
+if __name__ == '__main__':
+    app.run(debug=True)
