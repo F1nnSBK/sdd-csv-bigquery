@@ -20,10 +20,10 @@ def get_csv(target_bucket, source_blob_name, destination_file_path, storage_clie
     blob.download_to_filename(destination_file_path)
     print(f"Downloaded {source_blob_name} to {destination_file_path}")
 
+storage_client = storage.Client()
+blobs = storage_client.list_blobs(target_bucket)
 
 def get_csv_paths(target_bucket, prefix):
-    storage_client = storage.Client()
-    blobs = storage_client.list_blobs(target_bucket)
     dataset_table_pairs = []
 
     print("Blobs:")
@@ -41,15 +41,14 @@ def get_csv_paths(target_bucket, prefix):
             print(f"Dataset: {dataset_name}, Table: {table_name}")
 
             project_id=destination_project_id
-            dataset_name="test_finn"
-            dataset_table_pairs.append((dataset_name, table_name, project_id))
-            get_csv(target_bucket, blob.name, destination_file_path, storage_client)
+            dataset_name="test_randomData"
+            current_blob = blob.name
+            dataset_table_pairs.append((dataset_name, table_name, project_id, current_blob))
 
         else:
             print(f"Skipping: {blob.name}")
 
     return dataset_table_pairs
-
 
 
 
@@ -60,9 +59,9 @@ def create_dataset_if_not_exists(bigquery_client, dataset_id):
     except:
         print(f"Creating dataset {dataset_id}")
         dataset = bigquery.Dataset(dataset_id)
-        dataset.location = "DE"
+        # Frankfurt = europe-west3
+        dataset.location = "europe-west3"
         bigquery_client.create_dataset(dataset, exists_ok=True)
-
 
 
 
@@ -119,10 +118,13 @@ def write_to_bigquery(project_id, dataset_name, table_name, destination_file_pat
 
 # Call the function to find and download CSV files
 dataset_table_pairs = get_csv_paths(target_bucket, prefix)
+print(dataset_table_pairs)
+
 
 # Process each dataset-table pair and write to BigQuery
-for dataset_name, table_name, source_project_id in dataset_table_pairs:
-    if dataset_name and table_name and source_project_id:
+for dataset_name, table_name, source_project_id, current_blob in dataset_table_pairs:
+    if dataset_name and table_name and source_project_id and current_blob:
+        get_csv(target_bucket, current_blob, destination_file_path, storage_client)
         write_to_bigquery(source_project_id, dataset_name, table_name, destination_file_path)
     else:
         print("Invalid dataset or table name.")
