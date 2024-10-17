@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
   </head>
   <body>
-    <main>{{ message }}</main>
+    <main>
+      <div class="message-container">
+        Message: {{ message }} <br /> check: <br />
+        Dataset test_finn on bigquery
+      </div>
+    </main>
   </body>
 </html>

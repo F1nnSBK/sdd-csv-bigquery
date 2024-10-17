@@ -3,9 +3,10 @@
     margin: 0;
 }
 
-div {
-    border: 2px solid rd
+/* div {
+    border: 2px solid red
 }
+*/ 
 
 main {
     display: flex;
