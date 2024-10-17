@@ -2,6 +2,11 @@
 /tmp
 /data
 
+# Application temp
+df.parquet.gzip
+download/
+dateTest.py
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
