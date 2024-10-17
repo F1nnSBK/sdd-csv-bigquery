@@ -1,7 +1,8 @@
 
 /tmp
 /data
-
+ssh
+shh.pub
 # Application temp
 df.parquet.gzip
 download/
