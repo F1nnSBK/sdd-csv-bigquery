@@ -1,11 +1,17 @@
 from google.cloud import storage
 from google.cloud import bigquery
+from datetime import datetime
+from dotenv import load_dotenv
+import os as os
 import pandas as pd
 
-prefix = "csvImport/"
-target_bucket = "svg-dcc-raw-tst"
-destination_file_path = "/Users/finnhertsch/PycharmProjects/sdd-csv-bigquery/download/test.csv"
-project_id = "svg-dcc-shr-storage-aa07"
+load_dotenv()
+
+prefix = os.getenv('PREFIX')
+target_bucket = os.getenv('TARGET_BUCKET')
+destination_file_path = os.getenv('DESTINATION_FILE_PATH')
+source_project_id = os.getenv('SOURCE_PROJECT_ID')
+destination_project_id = os.getenv('DESTINATION_PROJECT_ID')
 
 
 def get_csv(target_bucket, source_blob_name, destination_file_path, storage_client):
@@ -15,12 +21,12 @@ def get_csv(target_bucket, source_blob_name, destination_file_path, storage_clie
     print(f"Downloaded {source_blob_name} to {destination_file_path}")
 
 
-def get_csv_path(target_bucket, prefix):
+def get_csv_paths(target_bucket, prefix):
     storage_client = storage.Client()
     blobs = storage_client.list_blobs(target_bucket)
+    dataset_table_pairs = []
 
     print("Blobs:")
-
     for blob in blobs:
         print(blob.name)  # Print all blob names for debugging
 
@@ -34,15 +40,17 @@ def get_csv_path(target_bucket, prefix):
             table_name = path_parts[2]  # or adjust based on actual structure
             print(f"Dataset: {dataset_name}, Table: {table_name}")
 
-            # Call function to download the CSV file
-            get_csv(target_bucket, blob.name, destination_file_path, storage_client)
-            project_id="svg-dcc-tst-datawarehouse-aa07"
+            project_id=destination_project_id
             dataset_name="test_finn"
-            return dataset_name, table_name, project_id
+            dataset_table_pairs.append((dataset_name, table_name, project_id))
+            get_csv(target_bucket, blob.name, destination_file_path, storage_client)
+
         else:
             print(f"Skipping: {blob.name}")
 
-    return None, None
+    return dataset_table_pairs
+
+
 
 
 def create_dataset_if_not_exists(bigquery_client, dataset_id):
@@ -52,11 +60,16 @@ def create_dataset_if_not_exists(bigquery_client, dataset_id):
     except:
         print(f"Creating dataset {dataset_id}")
         dataset = bigquery.Dataset(dataset_id)
-        dataset.location = "US"
+        dataset.location = "DE"
         bigquery_client.create_dataset(dataset, exists_ok=True)
 
 
+
+
 def write_to_bigquery(project_id, dataset_name, table_name, destination_file_path):
+    time_of_import = datetime.now().strftime("%w %b %Y : %H:%M:%S")
+    file_name = table_name
+
     bigquery_client = bigquery.Client(project=project_id)
 
     dataset_id = f"{project_id}.{dataset_name}"
@@ -67,26 +80,49 @@ def write_to_bigquery(project_id, dataset_name, table_name, destination_file_pat
     # Create dataset if it does not exist
     create_dataset_if_not_exists(bigquery_client, dataset_id)
 
-    # Load CSV file into DataFrame
+    time_of_import_arr = []
+    file_origin_arr = []
+
+    # Load CSV into DataFrame
     df = pd.read_csv(destination_file_path)
+
+    for row in df.itertuples():
+        time_of_import_arr.append(f"{time_of_import}")
+        file_origin_arr.append(f"{file_name}")
+
+    df.insert(loc=len(df.columns), column="timeOfImport", value=time_of_import_arr)
+    df.insert(loc=len(df.columns), column="nameOfOriginFile", value=file_origin_arr)
+    df.to_parquet("df.parquet.gzip", compression="gzip")
+    print(pd.read_parquet("df.parquet.gzip"))
 
     # Write DataFrame to BigQuery table
     job_config = bigquery.LoadJobConfig(
+        # Detect Schema from PARQUET-File
         autodetect=True,
-        source_format=bigquery.SourceFormat.CSV
+        # Set format of source file
+        source_format=bigquery.SourceFormat.PARQUET,
+        # If Table already exists, data is deleted and rewritten
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
     )
 
-    load_job = bigquery_client.load_table_from_dataframe(df, table_id, job_config=job_config)
-    load_job.result()  # Waits for the job to complete.
-    print(f"Loaded {len(df)} rows into {table_id}.")
+
+    uri = "df.parquet.gzip"
+
+    with open(uri, "rb") as f:
+        load_job = bigquery_client.load_table_from_file(f,
+                                                        table_id,
+                                                        job_config=job_config,
+        )
+        load_job.result()  # Waits for the job to complete.
+    return print(f"Loaded {len(df)} rows into {table_id}.")
 
 
-# Call the function to find and download the CSV file
+# Call the function to find and download CSV files
+dataset_table_pairs = get_csv_paths(target_bucket, prefix)
 
-dataset_name, table_name, project_id = get_csv_path(target_bucket, prefix)
-
-# If a table name was found, create the table_id and write to BigQuery
-if dataset_name and table_name:
-    write_to_bigquery(project_id, dataset_name, table_name, destination_file_path)
-else:
-    print("No table found.")
+# Process each dataset-table pair and write to BigQuery
+for dataset_name, table_name, source_project_id in dataset_table_pairs:
+    if dataset_name and table_name and source_project_id:
+        write_to_bigquery(source_project_id, dataset_name, table_name, destination_file_path)
+    else:
+        print("Invalid dataset or table name.")
