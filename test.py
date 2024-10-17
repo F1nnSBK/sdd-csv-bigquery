@@ -41,7 +41,7 @@ def get_csv_paths(target_bucket, prefix):
             print(f"Dataset: {dataset_name}, Table: {table_name}")
 
             project_id=destination_project_id
-            dataset_name="test_randomData"
+            dataset_name= os.getenv('DATASET_NAME')
             current_blob = blob.name
             dataset_table_pairs.append((dataset_name, table_name, project_id, current_blob))
 
@@ -59,8 +59,7 @@ def create_dataset_if_not_exists(bigquery_client, dataset_id):
     except:
         print(f"Creating dataset {dataset_id}")
         dataset = bigquery.Dataset(dataset_id)
-        # Frankfurt = europe-west3
-        dataset.location = "europe-west3"
+        dataset.location = os.getenv('DATASET_LOCATION')
         bigquery_client.create_dataset(dataset, exists_ok=True)
 
 

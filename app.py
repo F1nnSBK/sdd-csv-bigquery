@@ -1,20 +1,15 @@
-from statistics import variance
-from wsgiref.util import request_uri
 
 from flask import Flask, render_template
-from google.cloud import storage
 
 app = Flask(__name__)
-
-bucketNames = []
-blobsInProd = []
-target_bucket="svg-dcc-raw-tst"
-
+name = "Finn"
 @app.route('/')
-def displayBuckets():
-    project_id = "svg-dcc-shr-storage-aa07"
+def user():
+    return render_template('index.html', name=name)
 
-    return render_template("templates/index.html", bucketNames="Hallo")
+@app.route('/script/', methods=['POST'])
+def check():
+    return render_template('script.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
