@@ -23,7 +23,7 @@ name = "Finn"
 def user():
     return render_template('index.html', name=name)
 
-@app.route('/script/', methods=['POST'])
+@app.route('/import-csv/', methods=['POST'])
 def check():
 
     runScript(prefix, target_bucket, source_blob_name, destination_file_path, storage_client)
@@ -40,18 +40,16 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
         blob.download_to_filename(destination_file_path)
         print(f"Downloaded {source_blob_name} to {destination_file_path}")
 
-    blobs = storage_client.list_blobs(target_bucket)
+    blobs = storage_client.list_blobs(target_bucket, delimiter=None)
 
     def get_csv_paths(target_bucket, prefix):
         dataset_table_pairs = []
 
         print("Blobs:")
         for blob in blobs:
-            print(blob.name)  # Print all blob names for debugging
-
             if blob.name.startswith(prefix) and not blob.name.endswith('/'):
-                path_to_csv = f"{target_bucket}/{blob.name}"
-                print(f"Pfad zur CSV gefunden:\n gs://{path_to_csv}")
+                path_to_csv = f"gs://{target_bucket}/{blob.name}"
+                print(f"Pfad zur CSV gefunden:\n {path_to_csv}")
 
                 # Get dataset and table names
                 path_parts = blob.name.split('/')
@@ -62,8 +60,7 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
                 project_id=destination_project_id
                 dataset_name= os.getenv('DATASET_NAME')
                 current_blob = blob.name
-                dataset_table_pairs.append((dataset_name, table_name, project_id, current_blob))
-
+                dataset_table_pairs.append((dataset_name, table_name, project_id, current_blob, path_to_csv))
             else:
                 print(f"Skipping: {blob.name}")
 
@@ -83,16 +80,16 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
 
 
 
-    def write_to_bigquery(project_id, dataset_name, table_name, destination_file_path):
-        time_of_import = datetime.now().strftime("%a %b %Y : %H:%M:%S")
-        file_name = table_name
+    def write_to_bigquery(project_id, dataset_name, table_name, destination_file_path, path_to_csv):
+        time_of_import = datetime.now().strftime("%d %m %Y : %H:%M:%S")
+        file_name = path_to_csv
+        print(file_name)
 
         bigquery_client = bigquery.Client(project=project_id)
 
         dataset_id = f"{project_id}.{dataset_name}"
         table_name = table_name.split(".")[0]
         table_id = f"{dataset_id}.{table_name}"
-        print(table_id)
 
         # Create dataset if it does not exist
         create_dataset_if_not_exists(bigquery_client, dataset_id)
@@ -110,7 +107,6 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
         df.insert(loc=len(df.columns), column="timeOfImport", value=time_of_import_arr)
         df.insert(loc=len(df.columns), column="nameOfOriginFile", value=file_origin_arr)
         df.to_parquet("df.parquet.gzip", compression="gzip")
-        print(pd.read_parquet("df.parquet.gzip"))
 
         # Write DataFrame to BigQuery table
         job_config = bigquery.LoadJobConfig(
@@ -123,9 +119,9 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
         )
 
 
-        uri = "df.parquet.gzip" # Where can I find the Parquet file
+        parquet_path = "df.parquet.gzip" # Where can I find the Parquet file
 
-        with open(uri, "rb") as f:
+        with open(parquet_path, "rb") as f:
             load_job = bigquery_client.load_table_from_file(f,
                                                             table_id,
                                                             job_config=job_config,
@@ -136,14 +132,13 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
 
     # Call the function to find and download CSV files
     dataset_table_pairs = get_csv_paths(target_bucket, prefix)
-    print(dataset_table_pairs)
 
 
     # Process each dataset-table pair and write to BigQuery
-    for dataset_name, table_name, source_project_id, current_blob in dataset_table_pairs:
-        if dataset_name and table_name and source_project_id and current_blob:
+    for dataset_name, table_name, source_project_id, current_blob, path_to_csv in dataset_table_pairs:
+        if dataset_name and table_name and source_project_id and current_blob and path_to_csv:
             get_csv(target_bucket, current_blob, destination_file_path, storage_client)
-            write_to_bigquery(source_project_id, dataset_name, table_name, destination_file_path)
+            write_to_bigquery(source_project_id, dataset_name, table_name, destination_file_path, path_to_csv)
         else:
             print("Invalid dataset or table name.")
      
