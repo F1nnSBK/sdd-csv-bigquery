@@ -84,7 +84,7 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
 
 
     def write_to_bigquery(project_id, dataset_name, table_name, destination_file_path):
-        time_of_import = datetime.now().strftime("%w %b %Y : %H:%M:%S")
+        time_of_import = datetime.now().strftime("%a %b %Y : %H:%M:%S")
         file_name = table_name
 
         bigquery_client = bigquery.Client(project=project_id)
@@ -123,7 +123,7 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
         )
 
 
-        uri = "df.parquet.gzip"
+        uri = "df.parquet.gzip" # Where can I find the Parquet file
 
         with open(uri, "rb") as f:
             load_job = bigquery_client.load_table_from_file(f,
@@ -148,6 +148,7 @@ def runScript(prefix, target_bucket, source_blob_name, destination_file_path, st
             print("Invalid dataset or table name.")
      
         
+
 
 if __name__ == '__main__':
     app.run(debug=True)

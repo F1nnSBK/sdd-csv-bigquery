@@ -2,11 +2,14 @@
 /tmp
 /data
 ssh
-shh.pub
+ssh.pub
+qodana.yaml
+
 # Application temp
 df.parquet.gzip
 download/
 dateTest.py
+test.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
