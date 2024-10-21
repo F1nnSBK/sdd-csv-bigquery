@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sdd-gcs-csv-import-bq</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}" />
+  </head>
+  <body>
+    <main>
+      <div class="content-container">
+        <div class="heading">
+          <h1>Load CSV from GCS Bucket into BigQuery Dataset</h1>
+        </div>
+        <span>
+          Edit .env for targeted dataset <br /> Nach einem Klick auf "Start" läuft das Programm, bitte nicht spammen. <br />
+          Credentials müssen eingerichtet sein.
+        </span>
+        <div class="start-process">
+          <div>
+            <form action="/script/" method="post">
+              <button name="startPythonScript" type="submit">Start</button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>

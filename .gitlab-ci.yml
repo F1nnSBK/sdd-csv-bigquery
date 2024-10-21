@@ -1,0 +1,8 @@
+variables:
+  CONCURRENCY: 1
+ 
+
+include:
+  - project: software-development-and-data/backend-services/sdd-pipeline-templates
+    ref: main
+    file: pipelines/deploy_cloudrun_pipeline.yaml
